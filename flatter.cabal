@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 91006dd916fbfca749a84c072e981741e5ff7fec4e3acaac8dc2bedd36b2959f
+-- hash: 279f9ba1f101e4347cdbc2b5adab7ba1e57c4a77af1b025835edf2078c586507
 
 name:           flatter
 version:        0.1.0.0
@@ -50,7 +50,7 @@ executable flatter
       Paths_flatter
   hs-source-dirs:
       app
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -optl-static -optl-pthread
   build-depends:
       aeson
     , base >=4.7 && <5
