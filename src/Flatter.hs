@@ -36,6 +36,7 @@ data AtomicValue =
   | Null
     deriving (Show, Eq)
 
+pathComponentString :: PathComponent -> String
 pathComponentString (Index i) = "[" ++ show i ++ "]"
 pathComponentString OmittedIndex = "[]"
 pathComponentString (Key k) = T.unpack k
