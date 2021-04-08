@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 94b30ce805d2c1a06f70302e2673e6294d987398d2f550ff5e8a326f2c5c3f51
+-- hash: 91006dd916fbfca749a84c072e981741e5ff7fec4e3acaac8dc2bedd36b2959f
 
 name:           flatter
 version:        0.1.0.0
@@ -77,6 +77,7 @@ test-suite flatter-test
     , base >=4.7 && <5
     , bytestring
     , flatter
+    , hspec
     , scientific
     , text
     , unordered-containers
