@@ -1,0 +1,26 @@
+---
+name: hello
+spec:
+  value: 1
+  quux: mjau
+  bar: 42.3
+  tea: true
+  other: null
+  env:
+  - key: species
+    value: cat
+  - key: sound
+    value: mjau
+---
+---
+name: what
+spec:
+  value: 95
+  quux: lol
+  bar: 89
+  tea: false
+  other: null
+---
+{}
+---
+what: now

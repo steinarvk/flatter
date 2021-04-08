@@ -1,0 +1,56 @@
+name:                flatter
+version:             0.1.0.0
+github:              "steinarvk/flatter"
+license:             BSD3
+author:              "Steinar V. Kaldager"
+maintainer:          "steinarvkaldager@gmail.com"
+copyright:           "2021 Steinar V. Kaldager"
+
+extra-source-files:
+- README.md
+- ChangeLog.md
+
+# Metadata used when publishing your package
+# synopsis:            Short description of your package
+# category:            Web
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+description:         Please see the README on GitHub at <https://github.com/steinarvk/flatter#readme>
+
+dependencies:
+- base >= 4.7 && < 5
+- yaml
+- aeson
+- bytestring
+- utf8-string
+- text
+- vector
+- unordered-containers
+- scientific
+
+library:
+  source-dirs: src
+
+executables:
+  flatter:
+    main:                Main.hs
+    source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - flatter
+
+tests:
+  flatter-test:
+    main:                Spec.hs
+    source-dirs:         test
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - flatter
