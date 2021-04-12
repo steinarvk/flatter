@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 279f9ba1f101e4347cdbc2b5adab7ba1e57c4a77af1b025835edf2078c586507
+-- hash: ef9d47a38a0de9b7990b475d193711c12eeb3b0592e73ca49e3de553e182a707
 
 name:           flatter
 version:        0.1.0.0
@@ -28,6 +28,7 @@ source-repository head
 library
   exposed-modules:
       Flatter
+      Path
   other-modules:
       Paths_flatter
   hs-source-dirs:
@@ -36,6 +37,10 @@ library
       aeson
     , base >=4.7 && <5
     , bytestring
+    , extra
+    , optparse-applicative
+    , parsec
+    , rebase
     , scientific
     , text
     , unordered-containers
@@ -55,7 +60,11 @@ executable flatter
       aeson
     , base >=4.7 && <5
     , bytestring
+    , extra
     , flatter
+    , optparse-applicative
+    , parsec
+    , rebase
     , scientific
     , text
     , unordered-containers
@@ -76,8 +85,12 @@ test-suite flatter-test
       aeson
     , base >=4.7 && <5
     , bytestring
+    , extra
     , flatter
     , hspec
+    , optparse-applicative
+    , parsec
+    , rebase
     , scientific
     , text
     , unordered-containers

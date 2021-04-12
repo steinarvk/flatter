@@ -29,6 +29,10 @@ dependencies:
 - vector
 - unordered-containers
 - scientific
+- rebase
+- extra
+- parsec
+- optparse-applicative
 
 library:
   source-dirs: src

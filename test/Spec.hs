@@ -2,8 +2,15 @@
 
 import Flatter
 
+import Rebase.Prelude
 import Test.Hspec
 import qualified Data.Aeson as AE
+
+unflattenable :: [(Integer, Path, AtomicValue)]
+unflattenable =
+  [ (0, [Key "foo", Key "bar"], String "hello")
+  , (0, [Key "foo", Key "quux"], String "world")
+  ]
 
 main :: IO ()
 main = hspec $ do
@@ -23,3 +30,5 @@ main = hspec $ do
        it "null" $ shouldBe (atomicToString Null) "null"
   describe "flatten" $
     do it "string" $ shouldBe (flatten $ AE.Bool True) [([], Bool True)]
+  describe "unflatten" $
+    do it "simple" $ shouldBe (leftToMaybe $ head $ unflatten unflattenable) Nothing
