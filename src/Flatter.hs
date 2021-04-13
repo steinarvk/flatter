@@ -14,13 +14,18 @@ module Flatter
 import Path
     ( Path
     , PathComponent(..)
+    , PathGroup(..)
     , pathToString
     , pathParser
+    , groupPaths
     , rootPath
+    , unroot
+    , enroot
     )
 
 import Data.Either
-import Data.List.Extra (groupSort)
+import Data.List.Extra (groupSort, groupSortOn)
+import Data.Either.Extra (mapRight)
 import Data.List.Split (splitOn)
 import Data.Sort (sortOn)
 import Text.Read (readMaybe)
@@ -111,42 +116,51 @@ addIndex i ((p, a):xs) = (Flattened i p a) : addIndex i xs
 flatten :: [AE.Value] -> [Flattened]
 flatten xs = concat $ zipWith addIndex [1..] $ map flattenOne xs
 
-unrollHere :: [(Path, AtomicValue)] -> [AtomicValue]
-unrollHere = map snd . filter (\(p, _) -> p == [])
-
-unrollPathStep :: [(Path, AtomicValue)] -> [(PathComponent, [(Path, AtomicValue)])]
-unrollPathStep xs = mapSnd concat $ groupSort $ unrollPathStep' xs
-  where
-    unrollPathStep' [] = []
-    unrollPathStep' (([], _):xs) = unrollPathStep xs
-    unrollPathStep' (x:xs) = g x : unrollPathStep xs
-    g ((pc:p), v) = (pc, [(p, v)])
-
-objectKeyValues :: [(PathComponent, AE.Value)] -> [(T.Text, AE.Value)]
-objectKeyValues [] = []
-objectKeyValues ((Key k, v):xs) = (k, v) : objectKeyValues xs
-objectKeyValues (_:xs) = objectKeyValues xs
-
-arrayIndexValues :: [(PathComponent, AE.Value)] -> [(Int, AE.Value)]
-arrayIndexValues [] = []
-arrayIndexValues ((Index i, v):xs) = (i, v) : arrayIndexValues xs
-arrayIndexValues ((OmittedIndex, v):xs) = (0, v) : arrayIndexValues xs
-arrayIndexValues (_:xs) = arrayIndexValues xs
-
 mapFst f xys = [(f x, y) | (x,y) <- xys]
 mapSnd f xys = [(x, f y) | (x,y) <- xys]
 
-unroot :: Path -> Path
-unroot (Root:p) = p
-unroot p = p
+dropFst3 (x, y, z) = (y, z)
+fst3 (x, y, z) = x
 
-enroot :: Path -> Path
-enroot x@(Root:p) = x
-enroot p = Root:p
+rejigger (x, y, z) = (x, (y, z))
 
-data Semiflat = SemiflatObject [(String, Semiflat)]
-              | SemiflatArray [(Int, Semiflat)]
-              | SemiflatValue AtomicValue
+unwrapEither :: [Either a b] -> Either a [b]
+unwrapEither (Left err : _) = Left err
+unwrapEither (Right x : xs) =
+    case unwrapEither xs of
+      Left err -> Left err
+      Right xs' -> Right $ x : xs'
+unwrapEither [] = Right []
+
+unflattenOne :: [(Path, AtomicValue)] -> Either ParseError AE.Value
+unflattenOne xs = f (mapSnd toValue xs)
+  where
+    objectify :: [(T.Text, Path, AE.Value)] -> Either ParseError AE.Value
+    objectify xs =
+        case unwrapEither (map snd pairs) of
+          Left err -> Left err
+          Right values -> Right $ AE.Object $ HM.fromList (zip (map fst pairs) values)
+      where
+        pairs = mapSnd f $ groupSort $ map rejigger xs
+
+    arrayify :: [(Int, Path, AE.Value)] -> Either ParseError AE.Value
+    arrayify xs =
+        case unwrapEither (map snd pairs) of
+          Left err -> Left err
+          Right values -> Right $ AE.Array $ V.fromList values -- ? sort?
+      where
+        pairs = mapSnd f $ groupSort $ map rejigger xs
+
+    f :: [(Path, AE.Value)] -> Either ParseError AE.Value
+    f xs = if (null xs) then (Right AE.Null) else g xs
+
+    g :: [(Path, AE.Value)] -> Either ParseError AE.Value
+    g xs = case groupPaths xs of
+        Left err -> Left $ ParseError $ show err
+        Right pg -> case pg of
+          RootGroup av -> Right $ av
+          ObjectGroup kpas -> objectify kpas
+          ArrayGroup ipas -> arrayify ipas
 
 unindexStream :: (Num a, Eq a) => [(a, b)] -> [[b]]
 unindexStream [] = []
@@ -157,44 +171,10 @@ unindexStream ((i, x):xs) = map reverse $ f i [x] xs
     f i acc ((j, x):xs) | i == j = f i (x:acc) xs
     f i acc w@((j, x):xs) = acc : f (i+1) [] w
 
-
-unflattenOne :: [(Path, AtomicValue)] -> Either ParseError AE.Value
-unflattenOne xs = unflattenOne' unrooted
-  where
-    unrooted = mapFst unroot xs
-
-
-unflattenOne' :: [(Path, AtomicValue)] -> Either ParseError AE.Value
-unflattenOne' items =
-    case errors of
-      (err:_) -> Left err
-      [] -> case valuesHere of
-        [x] -> Right $ toValue x
-        [] -> case objkeys of
-          [] -> Right $ AE.Array $ V.fromList $ map snd $ sortOn fst arrkeys
-          objkeys -> Right $ AE.Object $ HM.fromList $ sortOn fst objkeys
-  where
-    unrolled = mapSnd unflattenOne $ unrollPathStep items 
-    errors = lefts $ map snd unrolled
-    okays = zip (map fst unrolled) $ rights $ map snd unrolled
-    objkeys = objectKeyValues okays
-    arrkeys = arrayIndexValues okays
-    valuesHere = unrollHere items
-
-chunkById :: (Eq a) => [(a, b)] -> [[b]]
-chunkById xs = f xs Nothing
-  where
-    f :: (Eq a) => [(a, b)] -> Maybe (a, [b]) -> [[b]]
-    f [] (Just (_, acc)) = [acc]
-    f [] Nothing = []
-    f ((i, x):xs) (Just (j, acc)) | i == j = f xs (Just (j, x:acc))
-    f ((i, x):xs) (Just (j, acc)) = acc : (f xs (Just (i, [x])))
-    f ((i, x):xs) _ = f xs (Just (i, [x]))
-
 data ParseError = ParseError String deriving (Show, Eq)
 
 unflatten :: [Flattened] -> [Either ParseError AE.Value]
-unflatten items = map unflattenOne (chunkById tupled) 
+unflatten items = map unflattenOne (unindexStream tupled) 
   where
     tupled = [(i, (p, a)) | Flattened i p a <- items ]
 
