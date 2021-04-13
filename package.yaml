@@ -32,7 +32,10 @@ dependencies:
 - rebase
 - extra
 - parsec
+- parsec3-numbers
 - optparse-applicative
+- split
+- sort
 
 library:
   source-dirs: src

@@ -2,6 +2,7 @@ module Flatter
     ( flatten
     , unflatten
     , pathToString
+    , parseFlatLine
     , atomicToString
     , Path(..)
     , PathComponent(..)
@@ -12,10 +13,14 @@ import Path
     ( Path
     , PathComponent(..)
     , pathToString
+    , pathParser
     )
 
 import Data.Either
 import Data.List.Extra (groupSort)
+import Data.List.Split (splitOn)
+import Data.Sort (sortOn)
+import Text.Read (readMaybe)
 
 import qualified Data.ByteString.Lazy.UTF8 as LUTF8
 import qualified Data.ByteString as BL
@@ -26,6 +31,7 @@ import qualified Data.List as L
 import qualified Data.Vector as V
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Scientific as SN
+import qualified Text.Parsec as P
 
 data AtomicValue =
     String T.Text
@@ -34,6 +40,8 @@ data AtomicValue =
   | Bool Bool
   | Null
     deriving (Show, Eq)
+
+data Flattened = Flattened Integer Path AtomicValue deriving (Show, Eq)
 
 atomicToString :: AtomicValue -> String
 atomicToString (String t) = LUTF8.toString $ AE.encode (AE.String t)
@@ -48,7 +56,18 @@ toValue (String s) = AE.String s
 toValue Null = AE.Null
 toValue (Bool True) = AE.Bool True
 toValue (Bool False) = AE.Bool False
--- TODO
+toValue (Integer x) = AE.Number $ SN.scientific x 0
+-- TODO numbers
+
+
+fromValue :: AE.Value -> Either ParseError AtomicValue
+fromValue (AE.String s) = Right $ String s
+fromValue AE.Null = Right $ Null
+fromValue (AE.Bool v) = Right $ Bool v
+fromValue (AE.Number x) = case SN.floatingOrInteger x of
+                            Left x -> Left $ ParseError "xxx"
+                            Right n -> Right $ Integer n
+-- TODO numbers
 
 flatten :: AE.Value -> [(Path, AtomicValue)]
 flatten val = case val of
@@ -82,24 +101,48 @@ objectKeyValues [] = []
 objectKeyValues ((Key k, v):xs) = (k, v) : objectKeyValues xs
 objectKeyValues (_:xs) = objectKeyValues xs
 
+arrayIndexValues :: [(PathComponent, AE.Value)] -> [(Int, AE.Value)]
+arrayIndexValues [] = []
+arrayIndexValues ((Index i, v):xs) = (i, v) : arrayIndexValues xs
+arrayIndexValues ((OmittedIndex, v):xs) = (0, v) : arrayIndexValues xs
+arrayIndexValues (_:xs) = arrayIndexValues xs
+
+mapFst f xys = [(f x, y) | (x,y) <- xys]
 mapSnd f xys = [(x, f y) | (x,y) <- xys]
 
+unroot :: Path -> Path
+unroot (Root:p) = p
+unroot p = p
+
+--data Semiflat = SemiflatObject [(String, Semiflat)]
+--              | SemiflatArray [(Int, Semiflat)]
+--              | SemiflatValue AtomicValue
+
 unflattenOne :: [(Path, AtomicValue)] -> Either ParseError AE.Value
-unflattenOne items =
+unflattenOne xs = unflattenOne' unrooted
+  where
+    unrooted = mapFst unroot xs
+
+
+unflattenOne' :: [(Path, AtomicValue)] -> Either ParseError AE.Value
+unflattenOne' items =
     case errors of
       (err:_) -> Left err
       [] -> case valuesHere of
         [x] -> Right $ toValue x
-        [] -> Right $ AE.Object $ HM.fromList objkeys -- XXX TODO
+        [] -> case objkeys of
+          [] -> Right $ AE.Array $ V.fromList $ map snd $ sortOn fst arrkeys
+          objkeys -> Right $ AE.Object $ HM.fromList $ sortOn fst objkeys
   where
     unrolled = mapSnd unflattenOne $ unrollPathStep items 
     errors = lefts $ map snd unrolled
     okays = zip (map fst unrolled) $ rights $ map snd unrolled
     objkeys = objectKeyValues okays
+    arrkeys = arrayIndexValues okays
     valuesHere = unrollHere items
 
-byEntityId :: (Eq a) => [(a, b)] -> [[b]]
-byEntityId xs = f xs Nothing
+chunkById :: (Eq a) => [(a, b)] -> [[b]]
+chunkById xs = f xs Nothing
   where
     f :: (Eq a) => [(a, b)] -> Maybe (a, [b]) -> [[b]]
     f [] (Just (_, acc)) = [acc]
@@ -108,10 +151,29 @@ byEntityId xs = f xs Nothing
     f ((i, x):xs) (Just (j, acc)) = acc : (f xs (Just (i, [x])))
     f ((i, x):xs) _ = f xs (Just (i, [x]))
 
-unflatten :: [(Integer, Path, AtomicValue)] -> [Either ParseError AE.Value]
-unflatten items = map unflattenOne (byEntityId tupled) 
-  where
-    tupled = [(i, (p, a)) | (i, p, a) <- items ]
-
 data ParseError = ParseError String deriving (Show, Eq)
 
+unflatten :: [Flattened] -> [Either ParseError AE.Value]
+unflatten items = map unflattenOne (chunkById tupled) 
+  where
+    tupled = [(i, (p, a)) | Flattened i p a <- items ]
+
+parseFlatLine :: String -> Either ParseError (Maybe Flattened)
+parseFlatLine s =
+    case columns of
+      [] -> Right Nothing
+      [i, p, a] -> do
+         case (readMaybe i :: Maybe Integer) of
+           Nothing -> Left $ ParseError ("bad integer: " ++ i)
+           Just idx -> do
+             case (AE.decode (LUTF8.fromString a) :: Maybe AE.Value) of
+               Nothing -> Left $ ParseError ("bad atomic JSON value: " ++ a)
+               Just fj -> case (fromValue fj) of
+                 Left pe -> Left pe
+                 Right av -> do
+                   case P.runParser pathParser () "input" p of
+                     Left err -> Left $ ParseError ("bad path: " ++ p ++ ", " ++ (show err))
+                     Right pp -> Right $ Just $ Flattened idx pp av
+      _ -> Left $ ParseError "wrong number of columns"
+  where
+    columns = splitOn "\t" s

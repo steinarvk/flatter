@@ -2,13 +2,18 @@
 module Main where
 
 import Flatter
+import Path
 
+import Data.Either
 import Options.Applicative
+import Text.Parsec
+import Data.Maybe
 
 import qualified Data.Yaml as Y
 import qualified Data.List as L
 import qualified Data.Text as T
 import qualified Data.ByteString as BL
+import qualified Data.ByteString.UTF8 as UTF8
 
 formatFlatEntry :: (Int, (Path, AtomicValue)) -> String
 formatFlatEntry (i, (p, a)) = concat $ L.intersperse "\t" [show i, pathToString (Root:p), atomicToString a]
@@ -22,23 +27,27 @@ flattenMain = do
   docs <- Y.decodeAllThrow s
   putStr $ unlines $ map formatFlatEntry $ concat $ zipWith zipWithConst [0..] (map flatten docs)
 
-scratchMain :: IO ()
-scratchMain = do
-   results <- return $ unflatten [
-       (0, [Key "foo"], String "one")
-     , (0, [Key "bar"], String "two")
-     , (0, [Key "quux", Key "k"], String "jo")
-     , (0, [Key "quux", Key "v"], String "x")
-     , (1, [Key "env"], String "lol")
-     ]
-   sequence $ map f results
+
+unflattenMain :: IO ()
+unflattenMain = do
+   s <- getContents
+   --- XXX: note "rights" and "catMaybes" swallow errors
+   sequence $ map f $ unflatten $ catMaybes $ rights $ map parseFlatLine (lines s)
    return ()
      where
        f result = case result of
          Left err -> putStrLn $ show $ err
          Right x -> do
            putStrLn "---"
-           BL.putStr $ Y.encode x
+           BL.putStr $ Y.encode x
+
+scratchMain = do
+  s <- BL.getContents
+  case (runParser pathParser () "input" (UTF8.toString s)) of
+    Left err -> putStrLn $ show $ err
+    Right x -> do
+      putStrLn $ pathToString x
+      putStrLn $ show x
 
 data Options = Options
   { optReverse :: Bool
@@ -56,5 +65,5 @@ main :: IO ()
 main = do
   args <- execParser argparser
   case (optReverse args) of
-    True -> scratchMain
+    True -> unflattenMain
     False -> flattenMain

@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: ef9d47a38a0de9b7990b475d193711c12eeb3b0592e73ca49e3de553e182a707
+-- hash: b752a7738ba77b15f0aa6fa3e02247b5353b32a419908b76f449ed412630ca99
 
 name:           flatter
 version:        0.1.0.0
@@ -40,8 +40,11 @@ library
     , extra
     , optparse-applicative
     , parsec
+    , parsec3-numbers
     , rebase
     , scientific
+    , sort
+    , split
     , text
     , unordered-containers
     , utf8-string
@@ -64,8 +67,11 @@ executable flatter
     , flatter
     , optparse-applicative
     , parsec
+    , parsec3-numbers
     , rebase
     , scientific
+    , sort
+    , split
     , text
     , unordered-containers
     , utf8-string
@@ -90,8 +96,11 @@ test-suite flatter-test
     , hspec
     , optparse-applicative
     , parsec
+    , parsec3-numbers
     , rebase
     , scientific
+    , sort
+    , split
     , text
     , unordered-containers
     , utf8-string
