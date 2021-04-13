@@ -15,24 +15,17 @@ import qualified Data.Text as T
 import qualified Data.ByteString as BL
 import qualified Data.ByteString.UTF8 as UTF8
 
-formatFlatEntry :: (Int, (Path, AtomicValue)) -> String
-formatFlatEntry (i, (p, a)) = concat $ L.intersperse "\t" [show i, pathToString (Root:p), atomicToString a]
-
-zipWithConst :: a -> [b] -> [(a, b)]
-zipWithConst a bs = [(a, b) | b <- bs]
-
 flattenMain :: IO ()
 flattenMain = do
   s <- BL.getContents
   docs <- Y.decodeAllThrow s
-  putStr $ unlines $ map formatFlatEntry $ concat $ zipWith zipWithConst [0..] (map flatten docs)
-
+  putStr $ unlines $ map formatFlattened $ flatten docs
 
 unflattenMain :: IO ()
 unflattenMain = do
    s <- getContents
    --- XXX: note "rights" and "catMaybes" swallow errors
-   sequence $ map f $ unflatten $ catMaybes $ rights $ map parseFlatLine (lines s)
+   sequence $ map f $ unflatten $ catMaybes $ rights $ map parseFlattened (lines s)
    return ()
      where
        f result = case result of
@@ -40,14 +33,6 @@ unflattenMain = do
          Right x -> do
            putStrLn "---"
            BL.putStr $ Y.encode x
-
-scratchMain = do
-  s <- BL.getContents
-  case (runParser pathParser () "input" (UTF8.toString s)) of
-    Left err -> putStrLn $ show $ err
-    Right x -> do
-      putStrLn $ pathToString x
-      putStrLn $ show x
 
 data Options = Options
   { optReverse :: Bool

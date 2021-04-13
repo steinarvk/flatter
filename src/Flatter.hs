@@ -1,9 +1,8 @@
 module Flatter
     ( flatten
     , unflatten
-    , pathToString
-    , parseFlatLine
-    , atomicToString
+    , parseFlattened
+    , formatFlattened
     , Path(..)
     , PathComponent(..)
     , AtomicValue(..)
@@ -69,8 +68,8 @@ fromValue (AE.Number x) = case SN.floatingOrInteger x of
                             Right n -> Right $ Integer n
 -- TODO numbers
 
-flatten :: AE.Value -> [(Path, AtomicValue)]
-flatten val = case val of
+flattenOne :: AE.Value -> [(Path, AtomicValue)]
+flattenOne val = case val of
     AE.Object m -> concat $ [g (Key k) v | (k, v) <- HM.toList m]
     AE.Array xs -> concat $ zipWith g (map Index [0..]) (V.toList xs)
     AE.String s -> [([], String s)]
@@ -79,11 +78,24 @@ flatten val = case val of
     AE.Number n -> [([], scientificToAtomic n)]
   where
     g :: PathComponent -> AE.Value -> [(Path, AtomicValue)]
-    g pc v = [(pc : p, v) | (p, v) <- flatten v]
+    g pc v = [(pc : p, v) | (p, v) <- flattenOne v]
 
     scientificToAtomic n = case SN.floatingOrInteger n of
       Left x -> Floating x
       Right m -> Integer m
+
+formatFlattened :: Flattened -> String
+formatFlattened (Flattened i p a) = concat $ L.intersperse "\t" [show i, pathToString (Root:p), atomicToString a]
+
+zipWithConst :: a -> [b] -> [(a, b)]
+zipWithConst a bs = [(a, b) | b <- bs]
+
+addIndex :: Integer -> [(Path, AtomicValue)] -> [Flattened]
+addIndex i [] = []
+addIndex i ((p, a):xs) = (Flattened i p a) : addIndex i xs
+
+flatten :: [AE.Value] -> [Flattened]
+flatten xs = concat $ zipWith addIndex [1..] $ map flattenOne xs
 
 unrollHere :: [(Path, AtomicValue)] -> [AtomicValue]
 unrollHere = map snd . filter (\(p, _) -> p == [])
@@ -114,9 +126,19 @@ unroot :: Path -> Path
 unroot (Root:p) = p
 unroot p = p
 
---data Semiflat = SemiflatObject [(String, Semiflat)]
---              | SemiflatArray [(Int, Semiflat)]
---              | SemiflatValue AtomicValue
+data Semiflat = SemiflatObject [(String, Semiflat)]
+              | SemiflatArray [(Int, Semiflat)]
+              | SemiflatValue AtomicValue
+
+unindexStream :: (Num a, Eq a) => [(a, b)] -> [[b]]
+unindexStream [] = []
+unindexStream ((i, x):xs) = map reverse $ f i [x] xs
+  where
+    f :: (Num a, Eq a) => a -> [b] -> [(a, b)] -> [[b]]
+    f _ acc [] = [acc]
+    f i acc ((j, x):xs) | i == j = f i (x:acc) xs
+    f i acc w@((j, x):xs) = acc : f (i+1) [] w
+
 
 unflattenOne :: [(Path, AtomicValue)] -> Either ParseError AE.Value
 unflattenOne xs = unflattenOne' unrooted
@@ -158,8 +180,8 @@ unflatten items = map unflattenOne (chunkById tupled)
   where
     tupled = [(i, (p, a)) | Flattened i p a <- items ]
 
-parseFlatLine :: String -> Either ParseError (Maybe Flattened)
-parseFlatLine s =
+parseFlattened :: String -> Either ParseError (Maybe Flattened)
+parseFlattened s =
     case columns of
       [] -> Right Nothing
       [i, p, a] -> do
