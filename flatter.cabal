@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: b752a7738ba77b15f0aa6fa3e02247b5353b32a419908b76f449ed412630ca99
+-- hash: a398b698360a6fc8cb3919d2f14ef7bfcbfdd0181b598d0dbdc0a00888356e84
 
 name:           flatter
 version:        0.1.0.0
@@ -34,7 +34,8 @@ library
   hs-source-dirs:
       src
   build-depends:
-      aeson
+      QuickCheck
+    , aeson
     , base >=4.7 && <5
     , bytestring
     , extra
@@ -60,7 +61,8 @@ executable flatter
       app
   ghc-options: -threaded -rtsopts -with-rtsopts=-N -optl-static -optl-pthread
   build-depends:
-      aeson
+      QuickCheck
+    , aeson
     , base >=4.7 && <5
     , bytestring
     , extra
@@ -88,7 +90,8 @@ test-suite flatter-test
       test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      aeson
+      QuickCheck
+    , aeson
     , base >=4.7 && <5
     , bytestring
     , extra

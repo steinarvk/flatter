@@ -36,6 +36,7 @@ dependencies:
 - optparse-applicative
 - split
 - sort
+- QuickCheck
 
 library:
   source-dirs: src

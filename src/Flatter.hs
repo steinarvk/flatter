@@ -1,9 +1,12 @@
 module Flatter
     ( flatten
     , unflatten
+    , flattenOne
     , parseFlattened
     , formatFlattened
     , Path(..)
+    , atomicToString
+    , pathToString
     , PathComponent(..)
     , AtomicValue(..)
     ) where
@@ -13,6 +16,7 @@ import Path
     , PathComponent(..)
     , pathToString
     , pathParser
+    , rootPath
     )
 
 import Data.Either
@@ -34,9 +38,11 @@ import qualified Text.Parsec as P
 
 data AtomicValue =
     String T.Text
-  | Floating Double
+  | Floating SN.Scientific
   | Integer Integer
   | Bool Bool
+  | EmptyArray
+  | EmptyObject
   | Null
     deriving (Show, Eq)
 
@@ -49,6 +55,8 @@ atomicToString (Integer i) = show i
 atomicToString (Floating x) = show x
 atomicToString (Bool True) = "true"
 atomicToString (Bool False) = "false"
+atomicToString EmptyArray = "[]"
+atomicToString EmptyObject = "{}"
 
 toValue :: AtomicValue -> AE.Value
 toValue (String s) = AE.String s
@@ -56,22 +64,28 @@ toValue Null = AE.Null
 toValue (Bool True) = AE.Bool True
 toValue (Bool False) = AE.Bool False
 toValue (Integer x) = AE.Number $ SN.scientific x 0
--- TODO numbers
-
+toValue (Floating x) = AE.Number $ x
+toValue EmptyArray = AE.Array $ V.fromList []
+toValue EmptyObject = AE.Object $ HM.fromList []
 
 fromValue :: AE.Value -> Either ParseError AtomicValue
 fromValue (AE.String s) = Right $ String s
 fromValue AE.Null = Right $ Null
 fromValue (AE.Bool v) = Right $ Bool v
 fromValue (AE.Number x) = case SN.floatingOrInteger x of
-                            Left x -> Left $ ParseError "xxx"
+                            Left _ -> Right $ Floating x
                             Right n -> Right $ Integer n
--- TODO numbers
+fromValue (AE.Object x) | HM.null x = Right $ EmptyObject
+fromValue (AE.Array x) | V.null x = Right $ EmptyArray
 
 flattenOne :: AE.Value -> [(Path, AtomicValue)]
 flattenOne val = case val of
-    AE.Object m -> concat $ [g (Key k) v | (k, v) <- HM.toList m]
-    AE.Array xs -> concat $ zipWith g (map Index [0..]) (V.toList xs)
+    AE.Object m -> if HM.null m
+                   then [(rootPath, EmptyObject)]
+                   else concat $ [g (Key k) v | (k, v) <- HM.toList m]
+    AE.Array xs -> if V.null xs
+                   then [(rootPath, EmptyArray)]
+                   else concat $ zipWith g (map Index [0..]) (V.toList xs)
     AE.String s -> [([], String s)]
     AE.Null -> [([], Null)]
     AE.Bool v -> [([], Bool v)]
@@ -81,11 +95,11 @@ flattenOne val = case val of
     g pc v = [(pc : p, v) | (p, v) <- flattenOne v]
 
     scientificToAtomic n = case SN.floatingOrInteger n of
-      Left x -> Floating x
+      Left x -> Floating n
       Right m -> Integer m
 
 formatFlattened :: Flattened -> String
-formatFlattened (Flattened i p a) = concat $ L.intersperse "\t" [show i, pathToString (Root:p), atomicToString a]
+formatFlattened (Flattened i p a) = concat $ L.intersperse "\t" [show i, pathToString (enroot p), atomicToString a]
 
 zipWithConst :: a -> [b] -> [(a, b)]
 zipWithConst a bs = [(a, b) | b <- bs]
@@ -125,6 +139,10 @@ mapSnd f xys = [(x, f y) | (x,y) <- xys]
 unroot :: Path -> Path
 unroot (Root:p) = p
 unroot p = p
+
+enroot :: Path -> Path
+enroot x@(Root:p) = x
+enroot p = Root:p
 
 data Semiflat = SemiflatObject [(String, Semiflat)]
               | SemiflatArray [(Int, Semiflat)]

@@ -3,6 +3,7 @@
 module Path
     ( PathComponent(..)
     , Path(..)
+    , rootPath
     , pathComponentString
     , pathToString
     , pathParser
@@ -14,6 +15,9 @@ import Text.ParserCombinators.Parsec
 
 import qualified Text.ParserCombinators.Parsec as P
 import qualified Text.Parsec.Number as PN
+
+rootPath :: Path
+rootPath = [Root]
 
 data PathComponent =
     Root

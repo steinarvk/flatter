@@ -15,4 +15,5 @@
 3	$.spec.tea	false
 3	$.spec.quux	"lol"
 3	$.spec.bar	89
+4	$	{}
 5	$.what	"now"
