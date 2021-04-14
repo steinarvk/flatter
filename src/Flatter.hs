@@ -183,6 +183,7 @@ unflatten items = map unflattenOne (unindexStream tupled)
 parseManyFlattened :: [String] -> [Either ParseError Flattened]
 parseManyFlattened xs = filterRightNothing (map parseFlattened xs)
   where
+    filterRightNothing [] = []
     filterRightNothing ((Right Nothing):xs) = filterRightNothing xs
     filterRightNothing ((Right (Just y)):xs) = (Right y) : filterRightNothing xs
     filterRightNothing ((Left err):xs) = (Left err) : filterRightNothing xs
