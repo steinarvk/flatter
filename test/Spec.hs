@@ -58,3 +58,6 @@ main = hspec $ do
   describe "flatten" $
     do it "round-trips with unflatten on single item" $ property $ roundtrips
        it "round-trips with unflatten on multiple items" $ property $ roundtripsMany
+       it "works on infinite streams" $ shouldBe (listToMaybe $ flatten $ repeat $ AE.String "foo") (Just $ Flattened 1 [] (String "foo"))
+  describe "unflatten" $
+    do it "works on infinite streams" $ shouldBe (listToMaybe $ unflatten $ map (\n -> Flattened n [] (String "hello")) [1..]) (Just $ Right $ AE.String "hello")

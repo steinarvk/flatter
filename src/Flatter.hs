@@ -1,8 +1,10 @@
 module Flatter
     ( flatten
     , unflatten
+    , Flattened(..)
     , flattenOne
     , parseFlattened
+    , parseManyFlattened
     , formatFlattened
     , Path(..)
     , atomicToString
@@ -177,6 +179,13 @@ unflatten :: [Flattened] -> [Either ParseError AE.Value]
 unflatten items = map unflattenOne (unindexStream tupled) 
   where
     tupled = [(i, (p, a)) | Flattened i p a <- items ]
+
+parseManyFlattened :: [String] -> [Either ParseError Flattened]
+parseManyFlattened xs = filterRightNothing (map parseFlattened xs)
+  where
+    filterRightNothing ((Right Nothing):xs) = filterRightNothing xs
+    filterRightNothing ((Right (Just y)):xs) = (Right y) : filterRightNothing xs
+    filterRightNothing ((Left err):xs) = (Left err) : filterRightNothing xs
 
 parseFlattened :: String -> Either ParseError (Maybe Flattened)
 parseFlattened s =
