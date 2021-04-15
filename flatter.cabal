@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: a398b698360a6fc8cb3919d2f14ef7bfcbfdd0181b598d0dbdc0a00888356e84
+-- hash: afeadb3ee7d1d86c8ba4fb8bca2f292e2ad7ca3653d646823bd56624207ad90d
 
 name:           flatter
 version:        0.1.0.0
@@ -28,6 +28,7 @@ source-repository head
 library
   exposed-modules:
       Flatter
+      Flatter.Read
       Path
   other-modules:
       Paths_flatter

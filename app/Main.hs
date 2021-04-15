@@ -1,30 +1,33 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 module Main where
 
 import Flatter
 import Path
+import Flatter.Read
 
+import Data.Typeable
 import Control.Exception
 import Data.Either
 import Options.Applicative
 import Text.Parsec
 import Data.Maybe
 
+import qualified Data.Aeson as AE
 import qualified Data.Yaml as Y
 import qualified Data.List as L
 import qualified Data.Text as T
 import qualified Data.ByteString as BL
-import qualified Data.ByteString.UTF8 as UTF8
 
 data ParseException = ParseException String
-  deriving (Show)
+  deriving (Show, Typeable)
 
 instance Exception ParseException
 
 flattenMain :: IO ()
 flattenMain = do
-  s <- BL.getContents
-  docs <- Y.decodeAllThrow s
+  s <- getContents
+  docs <- readYAMLRecords s
   putStr $ unlines $ map formatFlattened $ flatten docs
 
 partitionEithersTerminating :: [Either c a] -> (Maybe c, [a])
