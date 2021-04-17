@@ -4,10 +4,10 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: afeadb3ee7d1d86c8ba4fb8bca2f292e2ad7ca3653d646823bd56624207ad90d
+-- hash: b37f2a750fe39ad44e672421bd75ace84497058c3462f04ea4e7a6362ad81098
 
 name:           flatter
-version:        0.1.0.0
+version:        0.2.0.0
 description:    Please see the README on GitHub at <https://github.com/steinarvk/flatter#readme>
 homepage:       https://github.com/steinarvk/flatter#readme
 bug-reports:    https://github.com/steinarvk/flatter/issues
